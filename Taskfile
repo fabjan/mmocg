@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# See https://github.com/adriancooney/Taskfile for the inspiration
+
+DEFAULT_REPO="mmocg"
+
+if [ -z "$(git status --porcelain)" ]; then 
+  DEFAULT_TAG=$(cat ./VERSION 2>/dev/null)
+else 
+  DEFAULT_TAG="dev"
+fi
+
+function help {
+    echo "I'm a Taskfile codifying tasks needed to work with this here code."
+    echo "$0 <task> <args>"
+    echo "Available tasks:"
+    grep function $0 | cut -d' ' -f2 | xargs printf "\t%s\n"
+}
+
+function build {
+    go build
+}
+
+function start {
+    build # this is the thing Make handles better ...
+    ./mmocg
+}
+
+function dockerbuild {
+    image="$DEFAULT_REPO"
+    tag="$DEFAULT_TAG"
+    if [ -n "$1" ]; then
+        image="$1"
+    fi
+    if [ -n "$2" ]; then
+        tag="$2"
+    fi
+    docker build -t "$image:$tag" .
+}
+
+function dockerpush {
+    image="$DEFAULT_REPO"
+    tag="$DEFAULT_TAG"
+    if [ -n "$1" ]; then
+        image="$1"
+    fi
+    if [ -n "$2" ]; then
+        tag="$2"
+    fi
+    docker push "$image:$tag"
+}
+
+TIMEFORMAT="Task completed in %3lR"
+
+time ${@:-help}
