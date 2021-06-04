@@ -29,7 +29,9 @@ Any made changes must be backwards compatible. So things (fields, methods) can o
 
 ## TODO
 
-See the [Emoji Clicker README].
+See the [Emoji Clicker README] for general TODO.
+
+- [ ] rate limiting
 
 [Emoji Clicker]: https://github.com/fabjan/emoji-clicker
 [Emoji Clicker README]: https://github.com/fabjan/emoji-clicker/main/README.md

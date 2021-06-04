@@ -19,3 +19,6 @@ type Team struct {
 	ID     string `json:"id,omitempty"`
 	Clicks int64  `json:"clicks,omitempty"`
 }
+
+// Leaderboard is a collection of the highest scoring teams
+type Leaderboard []Team

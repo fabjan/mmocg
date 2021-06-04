@@ -34,9 +34,9 @@ type Route struct {
 type Routes []Route
 
 // NewRouter creates a router with routes for the MMOCG API
-func NewRouter() *mux.Router {
+func NewRouter(api *API) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	for _, route := range apiRoutes {
+	for _, route := range apiRoutes(api) {
 		var handler http.Handler
 		handler = route.HandlerFunc
 		handler = Logger(handler, route.Name)
@@ -59,39 +59,41 @@ func APIDefinition(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(swaggerYaml))
 }
 
-var apiRoutes = Routes{
-	Route{
-		"Index",
-		"GET",
-		"/v1",
-		APIDefinition,
-	},
+func apiRoutes(api *API) Routes {
+	return Routes{
+		Route{
+			"Index",
+			"GET",
+			"/v1",
+			APIDefinition,
+		},
 
-	Route{
-		"Click",
-		strings.ToUpper("Post"),
-		"/v1/team/{teamId}/click",
-		Click,
-	},
+		Route{
+			"Click",
+			strings.ToUpper("Post"),
+			"/v1/team/{teamId}/click",
+			api.Click,
+		},
 
-	Route{
-		"GetLeaderboard",
-		strings.ToUpper("Get"),
-		"/v1/leaderboard",
-		GetLeaderboard,
-	},
+		Route{
+			"GetLeaderboard",
+			strings.ToUpper("Get"),
+			"/v1/leaderboard",
+			api.GetLeaderboard,
+		},
 
-	Route{
-		"GetTeamById",
-		strings.ToUpper("Get"),
-		"/v1/team/{teamId}",
-		GetTeamByID,
-	},
+		Route{
+			"GetTeamById",
+			strings.ToUpper("Get"),
+			"/v1/team/{teamId}",
+			api.GetTeamByID,
+		},
 
-	Route{
-		"UpdateTeam",
-		strings.ToUpper("Post"),
-		"/v1/team/{teamId}",
-		UpdateTeam,
-	},
+		Route{
+			"UpdateTeam",
+			strings.ToUpper("Post"),
+			"/v1/team/{teamId}",
+			api.UpdateTeam,
+		},
+	}
 }

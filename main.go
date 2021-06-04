@@ -19,18 +19,31 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/rs/cors"
+
 	"github.com/fabjan/mmocg/server"
+	"github.com/fabjan/mmocg/store"
 )
 
 func main() {
 	log.Printf("Server started")
 
-	router := server.NewRouter()
+	// TODO configurable backing implementation
+	store := store.NewMutMap()
+
+	api := server.NewAPI(store)
+
+	router := server.NewRouter(&api)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5000"
 	}
 
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	// TODO configurable CORS?
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:*"},
+	})
+
+	log.Fatal(http.ListenAndServe(":"+port, c.Handler(router)))
 }

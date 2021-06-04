@@ -9,6 +9,7 @@ RUN go mod download
 
 COPY main.go .
 COPY server ./server
+COPY store ./store
 RUN go build
 
 FROM alpine
