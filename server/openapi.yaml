@@ -14,7 +14,7 @@ externalDocs:
   description: Find out more about Emoji Clicker
   url: https://github.com/fabjan/emoji-clicker
 servers:
-- url: https://example.com/v1
+- url: https://mmocg.example.com/v1
 tags:
 - name: team
   description: Registering, inspecting teams
