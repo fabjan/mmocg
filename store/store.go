@@ -75,11 +75,14 @@ func (mm *MutMap) GetLeaderboard() server.Leaderboard {
 	leaderboard := server.Leaderboard{}
 
 	for _, team := range mm.teams {
-		leaderboard = append(leaderboard, team)
+		if 0 < team.Clicks {
+			leaderboard = append(leaderboard, team)
+		}
 	}
 
 	sort.Slice(leaderboard, func(i, j int) bool {
-		return leaderboard[i].Clicks < leaderboard[j].Clicks
+		// more is less
+		return leaderboard[i].Clicks > leaderboard[j].Clicks
 	})
 
 	return leaderboard
