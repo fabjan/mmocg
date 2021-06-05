@@ -32,7 +32,9 @@ Any made changes must be backwards compatible. So things (fields, methods) can o
 See the [Emoji Clicker README] for general TODO.
 
 - [ ] rate limiting
+- [ ] tracing (want to try out [Uptrace])
 
 [Emoji Clicker]: https://github.com/fabjan/emoji-clicker
 [Emoji Clicker README]: https://github.com/fabjan/emoji-clicker/main/README.md
 [swagger-editor]: https://github.com/swagger-api/swagger-editor
+[Uptrace]: https://uptrace.dev/
