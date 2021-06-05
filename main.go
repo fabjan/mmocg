@@ -15,9 +15,13 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/rs/cors"
 
@@ -25,25 +29,72 @@ import (
 	"github.com/fabjan/mmocg/store"
 )
 
+type appConfig struct {
+	port           int
+	allowedOrigins stringSlice
+}
+
+func (cfg *appConfig) importEnv() {
+	envPort := os.Getenv("PORT")
+	port, err := strconv.Atoi(envPort)
+	if err != nil {
+		port = 5000
+	}
+	cfg.port = port
+	log.Printf("\tAPI port: %d", cfg.port)
+}
+
+func (cfg *appConfig) importArgs() {
+
+	var flagAllowOrigins stringSlice
+	flag.Var(&flagAllowOrigins, "allow-origin", "Patterns to allow as origin in CORS.")
+
+	flag.Parse()
+
+	cfg.allowedOrigins = flagAllowOrigins
+
+	log.Printf("\tAllowed origins: %s", cfg.allowedOrigins.String())
+}
+
 func main() {
-	log.Printf("Server started")
+
+	var cfg appConfig
+
+	log.Printf("Reading config...")
+
+	cfg.importEnv()
+	cfg.importArgs()
 
 	// TODO configurable backing implementation
+	log.Printf("Setting up store...")
+
 	store := store.NewMutMap()
 
+	log.Printf("Creating handlers...")
+
 	api := server.NewAPI(store)
-
 	router := server.NewRouter(&api)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "5000"
-	}
-
-	// TODO configurable CORS?
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:*"},
+		AllowedOrigins: cfg.allowedOrigins,
 	})
 
-	log.Fatal(http.ListenAndServe(":"+port, c.Handler(router)))
+	log.Printf("Server is listening...")
+
+	addr := fmt.Sprintf(":%d", cfg.port)
+	log.Fatal(http.ListenAndServe(addr, c.Handler(router)))
+}
+
+type stringSlice []string
+
+func (s *stringSlice) String() string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	sb.WriteString(strings.Join(*s, ", "))
+	sb.WriteString("]")
+	return fmt.Sprintf("%v", sb.String())
+}
+
+func (s *stringSlice) Set(value string) error {
+	*s = append(*s, value)
+	return nil
 }
