@@ -10,6 +10,7 @@ RUN go mod download
 COPY main.go .
 COPY server ./server
 COPY store ./store
+COPY spam ./spam
 RUN go build
 
 FROM alpine
