@@ -12,6 +12,12 @@ $ ./Taskfile start
 ```
 
 
+## Announcements
+
+The server can send updates to e.g. a Discord channel when some signifcant events happen.
+
+To enable this, set the environment variable `PSA_DISCORD_WEBHOOK` to a webhook for your Discord channel. See [PSA] for details and alternatives.
+
 ## API
 
 See [openapi.yaml](server/openapi.yaml).
@@ -38,3 +44,4 @@ See the [Emoji Clicker README] for general TODO.
 [Emoji Clicker README]: https://github.com/fabjan/emoji-clicker/main/README.md
 [swagger-editor]: https://github.com/swagger-api/swagger-editor
 [Uptrace]: https://uptrace.dev/
+[PSA]: https://github.com/fabjan/psa

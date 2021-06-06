@@ -26,6 +26,7 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/fabjan/mmocg/server"
+	"github.com/fabjan/mmocg/spam"
 	"github.com/fabjan/mmocg/store"
 )
 
@@ -65,12 +66,23 @@ func main() {
 	cfg.importEnv()
 	cfg.importArgs()
 
+	// TODO We could have a buffer on this channels,
+	//      but perhaps some rate limit is the first step.
+	onNewTeam := make(chan string)
+	onNewLeader := make(chan string)
+
 	// TODO configurable backing implementation
 	log.Printf("Setting up store...")
 
-	store := store.NewMutMap()
+	store := store.NewMutMap(onNewTeam, onNewLeader)
 
-	log.Printf("Creating handlers...")
+	log.Printf("Setting up notification spammer...")
+
+	// TODO graceful shutdown
+	spammer := spam.NewHandler(onNewTeam, onNewLeader)
+	go spammer.Go()
+
+	log.Printf("Creating API handlers...")
 
 	api := server.NewAPI(store)
 	router := server.NewRouter(&api)

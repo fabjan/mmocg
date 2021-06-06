@@ -25,13 +25,19 @@ import (
 
 // MutMap is an in memory team score store.
 type MutMap struct {
+	onNewTeam   chan string
+	onNewLeader chan string
+
 	mutex sync.RWMutex
 	teams map[string]server.Team
 }
 
 // NewMutMap creates a new empty MutMap.
-func NewMutMap() *MutMap {
-	mm := MutMap{}
+func NewMutMap(onNewTeam, onNewLeader chan string) *MutMap {
+	mm := MutMap{
+		onNewTeam:   onNewTeam,
+		onNewLeader: onNewLeader,
+	}
 	mm.teams = make(map[string]server.Team)
 	return &mm
 }
@@ -64,6 +70,10 @@ func (mm *MutMap) CreateTeam(teamID string) (server.Team, error) {
 	team.ID = teamID
 	mm.teams[teamID] = team
 
+	if mm.onNewTeam != nil {
+		mm.onNewTeam <- teamID
+	}
+
 	return team, nil
 }
 
@@ -93,6 +103,12 @@ func (mm *MutMap) RecordClicks(teamID string, count int64) (server.Team, error) 
 	mm.mutex.Lock()
 	defer mm.mutex.Unlock()
 
+	// OnNewLeader: stash leader before updating clicks so we can know if it changed
+	var prevLeader server.Team
+	if mm.onNewLeader != nil {
+		prevLeader = mm.lockedFindLeader()
+	}
+
 	team, ok := mm.teams[teamID]
 	if !ok {
 		return team, errors.New("not found")
@@ -101,5 +117,25 @@ func (mm *MutMap) RecordClicks(teamID string, count int64) (server.Team, error) 
 	team.Clicks += count
 	mm.teams[teamID] = team
 
+	// OnNewLeader: notify on new leader
+	if mm.onNewLeader != nil {
+		if prevLeader.Clicks < team.Clicks && prevLeader.ID != teamID {
+			mm.onNewLeader <- teamID
+		}
+	}
+
 	return team, nil
+}
+
+// locked as in you need to hold the lock when calling
+// returns a "zero" team if no leader is found
+func (mm *MutMap) lockedFindLeader() server.Team {
+	mostPoints := int64(-1)
+	leader := server.Team{}
+	for _, t := range mm.teams {
+		if mostPoints < t.Clicks {
+			leader = t
+		}
+	}
+	return leader
 }
