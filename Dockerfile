@@ -7,10 +7,11 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 
-COPY main.go .
 COPY server ./server
 COPY store ./store
 COPY spam ./spam
+COPY VERSION .
+COPY main.go .
 RUN go build
 
 FROM alpine

@@ -39,6 +39,7 @@ type Store interface {
 	FindByID(teamID string) (Team, error)
 	GetLeaderboard() Leaderboard
 	RecordClicks(teamID string, count int64) (Team, error)
+	Close()
 }
 
 // UpdateTeam creates or updates a team using the form data from the request

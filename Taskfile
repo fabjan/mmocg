@@ -21,9 +21,14 @@ function build {
     go build
 }
 
+function startdb {
+    docker run -d --name mmocg-db -p5432:5432 -e POSTGRES_PASSWORD=hunter2 postgres
+    echo export DATABASE_URL=postgres://postgres:hunter2@localhost:5432/postgres
+}
+
 function start {
-    build # this is the thing Make handles better ...
-    ./mmocg
+    build # this is a thing Make handles better ...
+    ./mmocg -allow-origin 'http://localhost:*'
 }
 
 function dockerbuild {
@@ -35,6 +40,7 @@ function dockerbuild {
     if [ -n "$2" ]; then
         tag="$2"
     fi
+    go mod tidy
     docker build -t "$image:$tag" .
 }
 
@@ -48,6 +54,12 @@ function dockerpush {
         tag="$2"
     fi
     docker push "$image:$tag"
+}
+
+function swagger-editor {
+    docker run -d -p 8080:8080 swaggerapi/swagger-editor
+    echo Open http://localhost:8080 in your browser to use the Swagger editor.
+    echo Use File ">" Import file to load the yaml you want to edit.
 }
 
 TIMEFORMAT="Task completed in %3lR"

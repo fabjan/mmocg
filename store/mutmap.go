@@ -42,6 +42,11 @@ func NewMutMap(onNewTeam, onNewLeader chan string) *MutMap {
 	return &mm
 }
 
+// Close closes the store (but MutMap has no connection)
+func (mm *MutMap) Close() {
+	// noop
+}
+
 // FindByID returns a single team if found by ID.
 func (mm *MutMap) FindByID(teamID string) (server.Team, error) {
 	mm.mutex.RLock()

@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	_ "embed" // for embedding app version
 	"flag"
 	"fmt"
 	"log"
@@ -40,7 +41,8 @@ type appConfig struct {
 }
 
 type appSecrets struct {
-	uptraceDSN string
+	uptraceDSN  string
+	databaseURL string
 }
 
 func (cfg *appConfig) importEnv() {
@@ -68,13 +70,26 @@ func (cfg *appConfig) importArgs() {
 func (cfg *appConfig) importSecrets() {
 	// TODO secrets handling
 	dsn := os.Getenv("UPTRACE_DSN")
-	cfg.secrets.uptraceDSN = dsn
-	if cfg.secrets.uptraceDSN != "" {
+	if dsn != "" {
+		cfg.secrets.uptraceDSN = dsn
 		log.Printf("\tUptrace DSN configured")
+	}
+
+	url := os.Getenv("DATABASE_URL")
+	if url != "" {
+		cfg.secrets.databaseURL = url
+		log.Printf("\tDatabase URL configured")
 	}
 }
 
+//go:embed VERSION
+var appVersion string
+
 func main() {
+
+	appVersion = strings.TrimSpace(appVersion)
+
+	log.Printf("Server version " + appVersion + " booting up...")
 
 	var cfg appConfig
 
@@ -87,8 +102,9 @@ func main() {
 	log.Printf("Setting up tracing...")
 	ctx := context.Background()
 	uptrace.ConfigureOpentelemetry(&uptrace.Config{
-		ServiceName: "mmocg",
-		DSN:         cfg.secrets.uptraceDSN,
+		ServiceName:    "mmocg",
+		ServiceVersion: appVersion,
+		DSN:            cfg.secrets.uptraceDSN,
 	})
 	defer uptrace.Shutdown(ctx)
 
@@ -100,7 +116,22 @@ func main() {
 	// TODO configurable backing implementation
 	log.Printf("Setting up store...")
 
-	store := store.NewMutMap(onNewTeam, onNewLeader)
+	var st server.Store
+	st = store.NewMutMap(onNewTeam, onNewLeader)
+	if cfg.secrets.databaseURL != "" {
+		db, err := store.OpenPg(cfg.secrets.databaseURL)
+		if err != nil {
+			log.Fatalf("cannot open database connection")
+		}
+		st, err = store.NewPostgres(db, "teams")
+		if err != nil {
+			log.Fatalf("cannot initialize team store")
+		}
+		log.Printf("\tUsing Postgres")
+	} else {
+		log.Printf("\tUsing in-memory map")
+	}
+	defer st.Close()
 
 	log.Printf("Setting up notification spammer...")
 
@@ -110,7 +141,7 @@ func main() {
 
 	log.Printf("Creating API handlers...")
 
-	api := server.NewAPI(store)
+	api := server.NewAPI(st)
 	router := server.NewRouter(&api)
 	router.Use(otelmux.Middleware("mmocg-http"))
 	c := cors.New(cors.Options{

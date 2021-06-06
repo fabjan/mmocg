@@ -12,6 +12,17 @@ $ ./Taskfile start
 ```
 
 
+### Postgres
+
+If you want to test with a real database locally you can use Docker:
+
+```shell
+$ ./Taskfile startdb
+```
+
+... and then start the server.
+
+
 ## Announcements
 
 The server can send updates to e.g. a Discord channel when some signifcant events happen.
@@ -25,10 +36,10 @@ See [openapi.yaml](server/openapi.yaml).
 The open api yaml was created with [swagger-editor]. You can run it locally through Docker:
 
 ```shell
-$ docker run -d -p 8080:8080 swaggerapi/swagger-editor
+$ ./Taskfile swagger-editor
 ```
 
-And then go to <http://localhost:8080>. Use `File` > `Import file` and "upload" [openapi.yaml] to edit it.
+Use `File` > `Import file` and "upload" [openapi.yaml] to edit it.
 
 Any made changes must be backwards compatible. So things (fields, methods) can only be added.
 
@@ -39,7 +50,7 @@ See the [Emoji Clicker README] for general TODO.
 
 - [x] Discord integration
 - [x] tracing (trying out [Uptrace])
-- [ ] Database integration
+- [x] Database integration
 - [ ] rate limiting
 
 [Emoji Clicker]: https://github.com/fabjan/emoji-clicker
