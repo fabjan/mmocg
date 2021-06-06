@@ -121,11 +121,11 @@ func main() {
 	if cfg.secrets.databaseURL != "" {
 		db, err := store.OpenPg(cfg.secrets.databaseURL)
 		if err != nil {
-			log.Fatalf("cannot open database connection")
+			log.Fatalf("cannot open database connection %v", err)
 		}
 		st, err = store.NewPostgres(db, "teams")
 		if err != nil {
-			log.Fatalf("cannot initialize team store")
+			log.Fatalf("cannot initialize team store: %v", err)
 		}
 		log.Printf("\tUsing Postgres")
 	} else {
