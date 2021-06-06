@@ -8,6 +8,5 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/uptrace/uptrace-go v0.20.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.20.0
-	go.opentelemetry.io/otel/trace v0.20.0
 	go.uber.org/ratelimit v0.2.0
 )

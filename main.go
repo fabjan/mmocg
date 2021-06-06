@@ -87,7 +87,8 @@ func main() {
 	log.Printf("Setting up tracing...")
 	ctx := context.Background()
 	uptrace.ConfigureOpentelemetry(&uptrace.Config{
-		DSN: cfg.secrets.uptraceDSN,
+		ServiceName: "mmocg",
+		DSN:         cfg.secrets.uptraceDSN,
 	})
 	defer uptrace.Shutdown(ctx)
 
