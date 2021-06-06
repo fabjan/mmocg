@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -24,6 +25,8 @@ import (
 	"strings"
 
 	"github.com/rs/cors"
+	"github.com/uptrace/uptrace-go/uptrace"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 
 	"github.com/fabjan/mmocg/server"
 	"github.com/fabjan/mmocg/spam"
@@ -33,6 +36,11 @@ import (
 type appConfig struct {
 	port           int
 	allowedOrigins stringSlice
+	secrets        appSecrets
+}
+
+type appSecrets struct {
+	uptraceDSN string
 }
 
 func (cfg *appConfig) importEnv() {
@@ -57,6 +65,15 @@ func (cfg *appConfig) importArgs() {
 	log.Printf("\tAllowed origins: %s", cfg.allowedOrigins.String())
 }
 
+func (cfg *appConfig) importSecrets() {
+	// TODO secrets handling
+	dsn := os.Getenv("UPTRACE_DSN")
+	cfg.secrets.uptraceDSN = dsn
+	if cfg.secrets.uptraceDSN != "" {
+		log.Printf("\tUptrace DSN configured")
+	}
+}
+
 func main() {
 
 	var cfg appConfig
@@ -65,6 +82,14 @@ func main() {
 
 	cfg.importEnv()
 	cfg.importArgs()
+	cfg.importSecrets()
+
+	log.Printf("Setting up tracing...")
+	ctx := context.Background()
+	uptrace.ConfigureOpentelemetry(&uptrace.Config{
+		DSN: cfg.secrets.uptraceDSN,
+	})
+	defer uptrace.Shutdown(ctx)
 
 	// TODO We could have a buffer on this channels,
 	//      but perhaps some rate limit is the first step.
@@ -86,6 +111,7 @@ func main() {
 
 	api := server.NewAPI(store)
 	router := server.NewRouter(&api)
+	router.Use(otelmux.Middleware("mmocg-http"))
 	c := cors.New(cors.Options{
 		AllowedOrigins: cfg.allowedOrigins,
 	})
