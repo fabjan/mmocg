@@ -46,7 +46,7 @@ func NewHandler(onNewTeam, onNewLeader chan string) *Handler {
 		log.Fatalf("failed announcement config: %v", err)
 	}
 	return &Handler{
-		spamPerSecond: 1, // TODO configurable?
+		spamPerSecond: 1, // TODO make this configurable
 		onNewTeam:     onNewTeam,
 		onNewLeader:   onNewLeader,
 		cfg:           cfg,
@@ -55,12 +55,13 @@ func NewHandler(onNewTeam, onNewLeader chan string) *Handler {
 
 // Go starts the channel listener/spamming forever loop.
 func (h *Handler) Go() {
+	// There are not really any resources to clean up,
+	// so this handler has no graceful shutdown.
 	rl := ratelimit.New(h.spamPerSecond)
 	announcers := h.cfg.Announcers()
 	tmpl := h.cfg.MessageTemplate
 	for {
 		rl.Take()
-		// TODO a quit channel for graceful shutdown
 		select {
 		case challenger := <-h.onNewTeam:
 			msg := renderAnnouncement(tmpl, "A challenger appears! ("+challenger+")")
@@ -79,6 +80,5 @@ func (h *Handler) Go() {
 				}
 			}
 		}
-
 	}
 }

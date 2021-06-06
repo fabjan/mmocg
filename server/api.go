@@ -16,6 +16,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -37,7 +38,7 @@ type Store interface {
 	// error must mean the team ID is taken
 	CreateTeam(teamID string) (Team, error)
 	FindByID(teamID string) (Team, error)
-	GetLeaderboard() Leaderboard
+	GetLeaderboard() (Leaderboard, error)
 	RecordClicks(teamID string, count int64) (Team, error)
 	Close()
 }
@@ -86,7 +87,11 @@ func (api *API) GetTeamByID(w http.ResponseWriter, r *http.Request) {
 // GetLeaderboard returns the highest scoring teams
 func (api *API) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 
-	lb := api.store.GetLeaderboard()
+	lb, err := api.store.GetLeaderboard()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	setContentTypeJSON(w)
 	json.NewEncoder(w).Encode(lb)
@@ -116,10 +121,9 @@ func (api *API) Click(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO rate limit -> 429
-
 	team, err := api.store.RecordClicks(teamID, int64(count))
 	if err != nil {
+		log.Printf("click error: %v", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

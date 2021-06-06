@@ -83,7 +83,7 @@ func (mm *MutMap) CreateTeam(teamID string) (server.Team, error) {
 }
 
 // GetLeaderboard returns the highest scoring teams.
-func (mm *MutMap) GetLeaderboard() server.Leaderboard {
+func (mm *MutMap) GetLeaderboard() (server.Leaderboard, error) {
 	mm.mutex.RLock()
 	defer mm.mutex.RUnlock()
 
@@ -100,7 +100,7 @@ func (mm *MutMap) GetLeaderboard() server.Leaderboard {
 		return leaderboard[i].Clicks > leaderboard[j].Clicks
 	})
 
-	return leaderboard
+	return leaderboard, nil
 }
 
 // RecordClicks stores clicks for the given team.

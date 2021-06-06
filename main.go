@@ -24,7 +24,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth/limiter"
+	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/uptrace/uptrace-go/uptrace"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
@@ -108,12 +112,15 @@ func main() {
 	})
 	defer uptrace.Shutdown(ctx)
 
-	// TODO We could have a buffer on this channels,
-	//      but perhaps some rate limit is the first step.
+	maxRPS := 10.0 // per token
+	lmtOpts := limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour}
+	lmt := tollbooth.NewLimiter(maxRPS, &lmtOpts)
+	lmt.SetMessageContentType("text/plain; charset=utf-8")
+	lmt.SetMessage("Enhance your calm.")
+
 	onNewTeam := make(chan string)
 	onNewLeader := make(chan string)
 
-	// TODO configurable backing implementation
 	log.Printf("Setting up store...")
 
 	var st server.Store
@@ -123,7 +130,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("cannot open database connection %v", err)
 		}
-		st, err = store.NewPostgres(db, "teams")
+		st, err = store.NewPostgres(db, "teams", onNewTeam, onNewLeader)
 		if err != nil {
 			log.Fatalf("cannot initialize team store: %v", err)
 		}
@@ -135,23 +142,26 @@ func main() {
 
 	log.Printf("Setting up notification spammer...")
 
-	// TODO graceful shutdown
 	spammer := spam.NewHandler(onNewTeam, onNewLeader)
 	go spammer.Go()
 
 	log.Printf("Creating API handlers...")
 
-	api := server.NewAPI(st)
-	router := server.NewRouter(&api)
-	router.Use(otelmux.Middleware("mmocg-http"))
-	c := cors.New(cors.Options{
+	corsFilter := cors.New(cors.Options{
 		AllowedOrigins: cfg.allowedOrigins,
 	})
+
+	api := server.NewAPI(st)
+
+	router := server.NewRouter(&api)
+	router.Use(otelmux.Middleware("mmocg-http"))
+	router.Use(limitMiddleware(lmt))
+	router.Use(corsFilter.Handler)
 
 	log.Printf("Server is listening...")
 
 	addr := fmt.Sprintf(":%d", cfg.port)
-	log.Fatal(http.ListenAndServe(addr, c.Handler(router)))
+	log.Fatal(http.ListenAndServe(addr, router))
 }
 
 type stringSlice []string
@@ -167,4 +177,10 @@ func (s *stringSlice) String() string {
 func (s *stringSlice) Set(value string) error {
 	*s = append(*s, value)
 	return nil
+}
+
+func limitMiddleware(lmt *limiter.Limiter) mux.MiddlewareFunc {
+	return func(h http.Handler) http.Handler {
+		return tollbooth.LimitHandler(lmt, h)
+	}
 }

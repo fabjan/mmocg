@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	_ "github.com/jackc/pgx/v4/stdlib" // for sql.Open("pgx", ...)
 
@@ -26,8 +27,10 @@ import (
 
 // Postgres is a postrges backed team score store.
 type Postgres struct {
-	db        *sql.DB
-	tableName string
+	db          *sql.DB
+	tableName   string
+	onNewTeam   chan string
+	onNewLeader chan string
 }
 
 // OpenPg opens a connection to the Postgres database with the given URL.
@@ -37,7 +40,7 @@ func OpenPg(rawURL string) (*sql.DB, error) {
 
 // NewPostgres creates a Postgres backed by the given table and DB.
 // The table is created if it does not exist.
-func NewPostgres(db *sql.DB, name string) (*Postgres, error) {
+func NewPostgres(db *sql.DB, name string, onNewTeam, onNewLeader chan string) (*Postgres, error) {
 	s := Postgres{
 		tableName: name,
 		db:        db,
@@ -47,6 +50,9 @@ func NewPostgres(db *sql.DB, name string) (*Postgres, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	s.onNewTeam = onNewTeam
+	s.onNewLeader = onNewLeader
 
 	return &s, nil
 }
@@ -72,7 +78,7 @@ func (s *Postgres) selectAllSQL(limit int) string {
 }
 
 func (s *Postgres) selectOneSQL() string {
-	return fmt.Sprintf("SELECT teamID, clicks FROM %s WHERE teamID = '$1' LIMIT 1", s.tableName)
+	return fmt.Sprintf("SELECT teamID, clicks FROM %s WHERE teamID = $1 LIMIT 1", s.tableName)
 }
 
 func (s *Postgres) selectLeaderSQL() string {
@@ -136,24 +142,22 @@ func (s *Postgres) CreateTeam(teamID string) (server.Team, error) {
 		return team, errors.New("no rows updated")
 	}
 
-	// TODO detect if team was created
-	//if mm.onNewTeam != nil {
-	//	mm.onNewTeam <- teamID
-	//}
+	if s.onNewTeam != nil {
+		s.onNewTeam <- teamID
+	}
 
 	return team, nil
 }
 
 // GetLeaderboard returns the highest scoring teams.
-func (s *Postgres) GetLeaderboard() server.Leaderboard {
+func (s *Postgres) GetLeaderboard() (server.Leaderboard, error) {
 
 	leaderboard := server.Leaderboard{}
 
 	// 640 rows ought to be enough for anyone
 	rows, err := s.db.Query(s.selectAllSQL(640))
 	if err != nil {
-		// TODO MutMap could not have errors, now we can
-		return leaderboard
+		return leaderboard, err
 	}
 	defer rows.Close()
 
@@ -161,58 +165,61 @@ func (s *Postgres) GetLeaderboard() server.Leaderboard {
 	for rows.Next() {
 		err := rows.Scan(&team.ID, &team.Clicks)
 		if err != nil {
-			// TODO MutMap could not have errors, now we can
-			return leaderboard
+			return leaderboard, err
 		}
 		leaderboard = append(leaderboard, team)
 	}
 	err = rows.Err()
 	if err != nil {
-		// TODO MutMap could not have errors, now we can
-		return leaderboard
+		return leaderboard, err
 	}
 
 	// the database already sorted it for us
-	return leaderboard
+	return leaderboard, nil
 }
 
 // RecordClicks stores clicks for the given team.
 func (s *Postgres) RecordClicks(teamID string, count int64) (server.Team, error) {
 
-	team := server.Team{
-		ID: teamID,
+	team := server.Team{}
+
+	prevLeader, err := s.findLeader()
+	if err != nil {
+		log.Printf("no leader found, expected only if no teams played yet")
 	}
 
 	res, err := s.db.Exec(s.upsertSQL(), teamID, count)
 	if err != nil {
-		return team, err
+		return team, fmt.Errorf("can't insert team: %w", err)
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return team, err
+		return team, fmt.Errorf("can't count affected rows: %w", err)
 	}
 	if rows < 1 {
-		return team, errors.New("no rows updated")
+		return team, fmt.Errorf("no rows updated: %w", err)
 	}
 
-	// TODO OnNewLeader: notify on new leader
-	//if mm.onNewLeader != nil {
-	//	if prevLeader.Clicks < team.Clicks && prevLeader.ID != teamID {
-	//		mm.onNewLeader <- teamID
-	//	}
-	//}
+	team, err = s.FindByID(teamID)
+	if err != nil {
+		return team, fmt.Errorf("can't find updated team: %w", err)
+	}
 
-	// TODO return updated team
+	if s.onNewLeader != nil {
+		if prevLeader.Clicks < team.Clicks && prevLeader.ID != teamID {
+			s.onNewLeader <- teamID
+		}
+	}
+
 	return team, nil
 }
 
-func (s *Postgres) findLeader() server.Team {
+func (s *Postgres) findLeader() (server.Team, error) {
 	leader := server.Team{}
 
 	rows, err := s.db.Query(s.selectLeaderSQL())
 	if err != nil {
-		// TODO MutMap could not have errors, now we can
-		return leader
+		return leader, err
 	}
 	defer rows.Close()
 
@@ -220,16 +227,14 @@ func (s *Postgres) findLeader() server.Team {
 	for rows.Next() {
 		err := rows.Scan(&leader.ID, &leader.Clicks)
 		if err != nil {
-			// TODO MutMap could not have errors, now we can
-			return leader
+			return leader, err
 		}
 	}
 	err = rows.Err()
 	if err != nil {
-		// TODO MutMap could not have errors, now we can
-		return leader
+		return leader, err
 	}
 
 	// if no leader was found we will return a "zero" team
-	return leader
+	return leader, nil
 }

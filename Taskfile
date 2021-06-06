@@ -62,6 +62,13 @@ function swagger-editor {
     echo Use File ">" Import file to load the yaml you want to edit.
 }
 
+function todo {
+    sources=$(find . -name '*go')
+    todo_pattern='.*TODO (.*)'
+    output_pattern='- [ ] \1: \2'
+    grep TODO $sources | sed -E 's_\./(.*):'"$todo_pattern"'_'"$output_pattern"'_' | sort -u | tr '\t' ' ' | tr -s ' '
+}
+
 TIMEFORMAT="Task completed in %3lR"
 
 time ${@:-help}

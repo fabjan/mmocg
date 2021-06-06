@@ -51,7 +51,7 @@ See the [Emoji Clicker README] for general TODO.
 - [x] Discord integration
 - [x] tracing (trying out [Uptrace])
 - [x] Database integration
-- [ ] rate limiting
+- [x] rate limiting
 
 [Emoji Clicker]: https://github.com/fabjan/emoji-clicker
 [Emoji Clicker README]: https://github.com/fabjan/emoji-clicker/main/README.md
